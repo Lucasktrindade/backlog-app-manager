@@ -3,193 +3,60 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Backlog — Multi Times (Offline Ready)</title>
-<!-- Dexie (IndexedDB helper) -->
+<title>Backlog — Multi Times (PWA)</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0b1220">
+<script>if('serviceWorker'in navigator){addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'))}</script>
 <script src="https://unpkg.com/dexie@4/dist/dexie.min.js"></script>
 <style>
-  :root {
-    --bg:#0b1220; --panel:#0f172a; --muted:#94a3b8; --text:#e5e7eb;
-    --accent:#22c55e; --line:#1f2937; --danger:#ef4444; --link:#93c5fd;
-    --col-hover: rgba(59,130,246,.08);
-    --card:#0e1930; --input:#0c172b; --shadow: 0 6px 24px rgba(0,0,0,.25);
-  }
-  [data-theme="light"] {
-    --bg:#f8fafc; --panel:#ffffff; --muted:#64748b; --text:#0f172a;
-    --accent:#16a34a; --line:#e2e8f0; --danger:#b91c1c; --link:#1d4ed8;
-    --col-hover: rgba(29,78,216,.08);
-    --card:#ffffff; --input:#ffffff; --shadow: 0 6px 20px rgba(0,0,0,.08);
-  }
-
-  * { box-sizing: border-box; }
-  html, body { margin:0; padding:0; background:var(--bg); color:var(--text);
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue"; }
-  header { position: sticky; top:0; backdrop-filter: blur(8px);
-    background: rgba(0,0,0,.1);
-    border-bottom:1px solid var(--line); padding:10px 16px; display:flex; gap:12px; align-items:center; z-index:10;}
-  header h1 { font-size:18px; margin:0; }
-  header .tag { font-size:12px; color:var(--muted); }
-  .container { padding:16px; max-width:1300px; margin:0 auto; }
-  .grid { display:grid; gap:12px; grid-template-columns: 1.1fr 2fr; }
-  .panel { background: var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; box-shadow: var(--shadow); }
-  .panel h2 { margin:0 0 6px; font-size:16px; }
-  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  input, select, textarea, button { background:var(--input); color:var(--text); border:1px solid var(--line);
-    border-radius:10px; padding:8px 10px; font-size:14px; }
-  input[type="date"]{ padding:6px 10px;}
-  textarea { width:100%; }
-  button { cursor:pointer; }
-  button.primary { background:#1d4ed8; border-color:#1d4ed8; color:white; }
-  button.ghost { background:transparent; border-color:var(--line); }
-  button.link { background:transparent; border:none; color:var(--link); text-decoration:underline; padding:0; cursor:pointer; }
-  .hint { color:var(--muted); font-size:13px; }
-  .badge { font-size:11px; padding:2px 6px; border:1px solid var(--line); border-radius:999px; color:var(--muted); }
-  .kanban { display:grid; grid-template-columns: repeat(5, minmax(260px, 1fr)); gap:10px; overflow-x:auto; padding-bottom:6px; }
-  .col { background: var(--panel); border:2px dashed var(--line);
-    border-radius:10px; padding:10px; min-height:120px; transition: border-color .15s, background .15s; }
-  .col.over { border-color:#3b82f6; background: var(--col-hover); }
-  .col h3 { margin:0 0 8px; font-size:14px; color:var(--muted); display:flex; justify-content:space-between; }
-  .dropzone { min-height:80px; }
-  .card { border:1px solid var(--line); border-radius:10px; padding:10px; background:var(--card); margin-bottom:8px; }
-  .dragging { opacity:.6; }
-  .ghost-card { border:1px dashed var(--line); border-radius:10px; margin:0 0 8px; height:46px; }
-  .small { font-size:12px; color:var(--muted); }
-  .actions { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
-  .danger { color: var(--danger); }
-  .nowrap { white-space:nowrap; }
-  .right { text-align:right; }
-  .pill { font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--line); }
-  .pill.low { background: rgba(14,165,233,.2); }
-  .pill.med { background: rgba(167,139,250,.18); }
-  .pill.high { background: rgba(239,68,68,.18); }
-  .taglist { display:flex; gap:6px; flex-wrap:wrap; }
-  .tag { font-size:11px; padding:2px 6px; border:1px solid var(--line); border-radius:6px; color:var(--muted); }
-  .toolbar { display:flex; gap:8px; align-items:center; margin-left:auto; flex-wrap:wrap; }
-  .grow { flex:1; }
-  .table { width:100%; border-collapse: collapse; overflow-x:auto; display:block; }
-  .table table { width:100%; }
-  .table th, .table td { border-bottom:1px solid var(--line); padding:8px; font-size:13px; text-align:left; vertical-align: top; }
-  .table th { color:var(--muted); position:sticky; top:0; background:var(--panel); }
-  .split { display:grid; gap:12px; grid-template-columns: 1fr 1fr; }
-  .hr { border-top:1px dashed var(--line); margin:10px 0; }
-  a { color:var(--link); }
-  .switch { display:inline-flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); }
-  /* Responsive */
-  @media (max-width: 1000px){
-    .grid { grid-template-columns: 1fr; }
-  }
-  @media (max-width: 640px){
-    header { gap:8px; }
-    .toolbar { gap:6px; }
-    .split { grid-template-columns: 1fr; }
-    .kanban { grid-template-columns: repeat(5, minmax(240px, 1fr)); }
-    .row input, .row select, .row button { flex: 1 1 auto; }
-  }
-  /* Toast */
-  .toast { position:fixed; bottom:12px; left:50%; transform:translateX(-50%); background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:8px 12px; box-shadow:var(--shadow); font-size:13px; display:none; z-index:60;}
+:root{--bg:#0b1220;--panel:#0f172a;--muted:#94a3b8;--text:#e5e7eb;--accent:#1d4ed8;--line:#1f2937;--link:#93c5fd;--card:#0e1930;--input:#0c172b}
+[data-theme=light]{--bg:#f8fafc;--panel:#fff;--muted:#64748b;--text:#0f172a;--accent:#1d4ed8;--line:#e2e8f0;--link:#1d4ed8;--card:#fff;--input:#fff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,Segoe UI,Roboto}
+header{position:sticky;top:0;background:rgba(0,0,0,.1);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;gap:12px;align-items:center;z-index:10}
+h1{margin:0;font-size:18px;display:flex;gap:8px;align-items:center}.app-logo{width:24px;height:24px;border-radius:6px;border:1px solid var(--line);display:none}
+.container{max-width:1200px;margin:0 auto;padding:16px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input,select,textarea,button{background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}button.link{background:transparent;border:none;color:var(--link);text-decoration:underline;cursor:pointer}
+details>summary{list-style:none;cursor:pointer;padding:8px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--panel)}
+.kanban{display:grid;grid-template-columns:repeat(5,minmax(240px,1fr));gap:10px;overflow-x:auto}
+.col{border:2px dashed var(--line);border-radius:10px;padding:10px;min-height:120px}.col.over{background:rgba(59,130,246,.08);border-color:#3b82f6}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px}
+.small{font-size:12px;color:var(--muted)}.tag{display:inline-block;padding:2px 8px;border:1px solid var(--line);border-radius:999px;margin:2px 4px 0 0;font-size:12px}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;width:min(720px,96vw)}
+.toast{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:8px 12px;display:none}
 </style>
 </head>
 <body>
 <header>
-  <h1>Backlog — Multi Times</h1>
-  <span class="tag">Offline Ready • IndexedDB • Auto‑save opcional</span>
-  <div class="toolbar">
-    <input id="q" placeholder="Pesquisar (título, tags, pessoa, link)">
-    <select id="fltTeam"></select>
-    <select id="fltStatus">
-      <option value="">Todos status</option>
-      <option value="despriorizado">Despriorizado</option>
-      <option value="a_fazer">A fazer</option>
-      <option value="fazendo">Fazendo</option>
-      <option value="bloqueado">Bloqueado</option>
-      <option value="feito">Feito</option>
-    </select>
-    <button id="btnExport">Exportar JSON</button>
-    <button id="btnExportCSV">Exportar CSV</button>
-    <input type="file" id="importFile" accept="application/json" style="display:none">
-    <button id="btnImport" class="ghost">Importar</button>
-    <button id="btnSeed" class="ghost">Popular exemplo</button>
-    <button id="btnWipe" class="ghost">Limpar</button>
-    <label class="switch">
-      <input id="themeToggle" type="checkbox"> Tema claro
-    </label>
-  </div>
+  <h1><img id="appLogo" class="app-logo"><span id="appTitle">Backlog — Multi Times</span></h1>
+  <input id="q" placeholder="Pesquisar (título, tags, pessoa, link)">
+  <select id="fltTeam"></select>
+  <select id="fltStatus"><option value="">Todos status</option><option value="despriorizado">Despriorizado</option><option value="a_fazer">A fazer</option><option value="fazendo">Fazendo</option><option value="bloqueado">Bloqueado</option><option value="feito">Feito</option></select>
+  <button id="btnExport">Exportar JSON</button>
+  <button id="btnImport" class="link">Importar</button><input type="file" id="importFile" accept="application/json" style="display:none">
+  <label><input id="themeToggle" type="checkbox"> Tema claro</label>
+  <button id="btnSettings" class="link" style="margin-left:auto">Configurações</button>
 </header>
-
 <div class="container">
-  <div class="grid">
-    <div class="panel">
-      <h2>Times & Pessoas</h2>
-      <div class="row">
-        <input id="teamName" placeholder="Nome do time">
-        <button id="btnAddTeam" class="primary">+ Time</button>
-      </div>
-      <div id="teams"></div>
-      <div class="hr"></div>
-      <div class="row">
-        <select id="personTeam"></select>
-        <input id="personName" placeholder="Nome da pessoa">
-        <input id="personEmail" placeholder="Email (opcional)">
-        <button id="btnAddPerson" class="primary">+ Pessoa</button>
-      </div>
-      <div id="people"></div>
-    </div>
-
-    <div class="panel">
-      <h2>Nova Iniciativa</h2>
-      <div class="split">
-        <div>
-          <div class="row">
-            <select id="initTeam"></select>
-            <input id="initTitle" class="grow" placeholder="Título da iniciativa">
-          </div>
-          <textarea id="initDesc" rows="3" placeholder="Descrição (opcional)"></textarea>
-          <div class="row">
-            <select id="initAssignee"></select>
-            <input type="date" id="initDue">
-            <select id="initStatus">
-              <option value="despriorizado">Despriorizado</option>
-              <option value="a_fazer">A fazer</option>
-              <option value="fazendo">Fazendo</option>
-              <option value="bloqueado">Bloqueado</option>
-              <option value="feito">Feito</option>
-            </select>
-            <select id="initPriority">
-              <option value="Média">Prioridade: Média</option>
-              <option value="Alta">Prioridade: Alta</option>
-              <option value="Baixa">Prioridade: Baixa</option>
-            </select>
-            <input id="initEffort" placeholder="Esforço (pts/dias)">
-          </div>
-          <div class="row">
-            <input id="initTags" class="grow" placeholder="Tags separadas por vírgula">
-          </div>
-        </div>
-        <div>
-          <div class="row">
-            <select id="linkPlatform">
-              <option value="Azure DevOps">Azure DevOps</option>
-              <option value="Jira">Jira</option>
-              <option value="HubSpot">HubSpot</option>
-              <option value="Outro">Outro</option>
-            </select>
-            <input id="linkUrl" class="grow" placeholder="URL (cole aqui o link)">
-            <button id="btnAddTempLink" class="ghost">+ Link</button>
-          </div>
-          <div id="tempLinks" class="taglist"></div>
-          <div class="hr"></div>
-          <div class="row">
-            <button id="btnAddInitiative" class="primary">+ Adicionar Iniciativa</button>
-            <span class="grow"></span>
-            <button id="btnBindFile" class="ghost">Vincular arquivo (Auto‑save)</button>
-            <span id="autoSaveState" class="hint">Auto‑save: desligado</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="panel">
-    <h2>Kanban</h2>
+  <details class="panel" id="secTeams"><summary><strong>Times & Pessoas</strong> — clique para expandir</summary>
+    <div class="row"><input id="teamName" placeholder="Nome do time"><button id="btnAddTeam" class="primary">+ Time</button></div>
+    <div id="teams" style="margin:8px 0"></div>
+    <div class="row"><select id="personTeam"></select><input id="personName" placeholder="Nome da pessoa"><input id="personEmail" placeholder="Email"><button id="btnAddPerson" class="primary">+ Pessoa</button></div>
+    <div id="people"></div>
+  </details>
+  <details class="panel" id="secNew"><summary><strong>Cadastro de Iniciativas</strong> — clique para expandir</summary>
+    <div class="row"><select id="initTeam"></select><input id="initTitle" placeholder="Título"><select id="initAssignee"></select><input type="date" id="initDue"></div>
+    <div class="row"><select id="initStatus"><option value="despriorizado">Despriorizado</option><option value="a_fazer">A fazer</option><option value="fazendo">Fazendo</option><option value="bloqueado">Bloqueado</option><option value="feito">Feito</option></select>
+    <select id="initPriority"><option>Média</option><option>Alta</option><option>Baixa</option></select><input id="initEffort" placeholder="Esforço (pts/dias)"></div>
+    <textarea id="initDesc" rows="2" placeholder="Descrição"></textarea>
+    <div class="row"><input id="initTags" class="grow" placeholder="Tags, separadas por vírgula"></div>
+    <div class="row"><select id="linkPlatform"><option>Azure DevOps</option><option>Jira</option><option>HubSpot</option><option>Outro</option></select><input id="linkUrl" class="grow" placeholder="URL"><button id="btnAddTempLink">+ Link</button></div>
+    <div id="tempLinks"></div>
+    <div class="row" style="margin-top:8px"><button id="btnAddInitiative" class="primary">+ Adicionar Iniciativa</button><span id="autoSaveState" class="small"></span></div>
+  </details>
+  <div class="panel"><h2>Backlog (Kanban)</h2>
     <div class="kanban">
       <div class="col" data-status="despriorizado"><h3>Despriorizado <span id="count_desp"></span></h3><div id="col_desp" class="dropzone"></div></div>
       <div class="col" data-status="a_fazer"><h3>A fazer <span id="count_todo"></span></h3><div id="col_todo" class="dropzone"></div></div>
@@ -197,694 +64,105 @@
       <div class="col" data-status="bloqueado"><h3>Bloqueado <span id="count_block"></span></h3><div id="col_block" class="dropzone"></div></div>
       <div class="col" data-status="feito"><h3>Feito <span id="count_done"></span></h3><div id="col_done" class="dropzone"></div></div>
     </div>
-    <div class="hint" style="margin-top:6px">Dica: arraste uma iniciativa para outra coluna para mudar o status, ou dentro da mesma coluna para reordenar.</div>
   </div>
-
-  <div class="panel">
-    <h2>Lista</h2>
-    <div class="table"><table id="listTable"></table></div>
-  </div>
+  <div class="panel"><h2>Backlog (Lista)</h2><table id="listTable" style="width:100%"></table></div>
 </div>
-
 <div id="toast" class="toast"></div>
-
-<!-- Modal de Edição -->
-<div id="modalBackdrop" class="modal-backdrop">
-  <div class="modal" role="dialog" aria-modal="true">
-    <header>
-      <h3>Editar Iniciativa</h3>
-      <button id="btnCloseModal" class="link close-x">Fechar</button>
-    </header>
-    <div class="content">
-      <input type="hidden" id="editId">
-      <div class="row">
-        <select id="editTeam"></select>
-        <input id="editTitle" class="grow" placeholder="Título">
-      </div>
-      <textarea id="editDesc" rows="3" placeholder="Descrição"></textarea>
-      <div class="row">
-        <select id="editAssignee"></select>
-        <input type="date" id="editDue">
-        <select id="editStatus">
-          <option value="despriorizado">Despriorizado</option>
-          <option value="a_fazer">A fazer</option>
-          <option value="fazendo">Fazendo</option>
-          <option value="bloqueado">Bloqueado</option>
-          <option value="feito">Feito</option>
-        </select>
-        <select id="editPriority">
-          <option value="Média">Prioridade: Média</option>
-          <option value="Alta">Prioridade: Alta</option>
-          <option value="Baixa">Prioridade: Baixa</option>
-        </select>
-        <input id="editEffort" placeholder="Esforço (pts/dias)">
-      </div>
-      <div class="row">
-        <input id="editTags" class="grow" placeholder="Tags (vírgula)">
-      </div>
-      <div class="hr"></div>
-      <div class="row">
-        <select id="editLinkPlatform">
-          <option value="Azure DevOps">Azure DevOps</option>
-          <option value="Jira">Jira</option>
-          <option value="HubSpot">HubSpot</option>
-          <option value="Outro">Outro</option>
-        </select>
-        <input id="editLinkUrl" class="grow" placeholder="URL">
-        <button id="btnEditAddLink" class="ghost">+ Link</button>
-      </div>
-      <div id="editLinks" class="taglist"></div>
-    </div>
-    <footer>
-      <button id="btnCancelModal" class="ghost">Cancelar</button>
-      <button id="btnSaveEdit" class="primary">Salvar alterações</button>
-    </footer>
-  </div>
-</div>
-
+<div id="modalBackdrop" class="modal-backdrop"><div class="modal">
+  <header><h3>Editar Iniciativa</h3><button id="btnCloseModal" class="link">Fechar</button></header>
+  <input type="hidden" id="editId">
+  <div class="row"><select id="editTeam"></select><input id="editTitle" placeholder="Título"></div>
+  <textarea id="editDesc" rows="3" placeholder="Descrição"></textarea>
+  <div class="row"><select id="editAssignee"></select><input type="date" id="editDue"><select id="editStatus"><option value="despriorizado">Despriorizado</option><option value="a_fazer">A fazer</option><option value="fazendo">Fazendo</option><option value="bloqueado">Bloqueado</option><option value="feito">Feito</option></select><select id="editPriority"><option>Média</option><option>Alta</option><option>Baixa</option></select><input id="editEffort" placeholder="Esforço"></div>
+  <div class="row"><input id="editTags" placeholder="Tags (vírgula)"></div>
+  <div class="row"><select id="editLinkPlatform"><option>Azure DevOps</option><option>Jira</option><option>HubSpot</option><option>Outro</option></select><input id="editLinkUrl" placeholder="URL"><button id="btnEditAddLink">+ Link</button></div>
+  <div id="editLinks"></div>
+  <footer class="row" style="justify-content:flex-end"><button id="btnCancelModal">Cancelar</button><button id="btnSaveEdit" class="primary">Salvar</button></footer>
+</div></div>
+<div id="settingsBackdrop" class="modal-backdrop"><div class="modal">
+  <header><h3>Configurações</h3><button id="btnCloseSettings" class="link">Fechar</button></header>
+  <div class="row"><input id="cfgTitle" class="grow" placeholder="Nome do app (ex.: Backlog XYZ)"></div>
+  <div class="row"><input id="cfgLogoFile" type="file" accept="image/*"><button id="btnClearLogo">Remover logo</button></div>
+  <footer class="row" style="justify-content:flex-end"><button id="btnCancelSettings">Cancelar</button><button id="btnSaveSettings" class="primary">Salvar</button></footer>
+</div></div>
 <script>
-// -------- Storage (IndexedDB + Auto-save em arquivo) --------
-const DB_NAME = "backlog_multitimes_idb_v1";
-const STORE_META = "meta";   // {key:'autosave', value:{enabled, name}}
-const STORE_DATA = "data";   // {id:'snapshot', value:{teams,people,initiatives}}
-const LEGACY_LS = "backlog_multitimes_v5_fix"; // chave antiga localStorage para migrar
+const DB="backlog_pwa_store"; let dbx; const THEME="backlog_theme"; const db={teams:[],people:[],initiatives:[]}; let tempLinks=[];
+async function initDB(){ dbx=new Dexie(DB); dbx.version(1).stores({meta:'key',data:'id'}); await dbx.open(); }
+async function metaGet(k){ try{const r=await dbx.meta.get(k); return r? r.value:null;}catch(e){return null;} }
+async function metaSet(k,v){ return dbx.meta.put({key:k,value:v}); }
+async function load(){ const s=await dbx.data.get('snapshot'); return s&&s.value? s.value:{teams:[],people:[],initiatives:[]}; }
+async function save(){ await dbx.data.put({id:'snapshot',value:db}); }
 
-let dbx;
-let autoSaveHandle = null; // FileSystemFileHandle
-let autoSaveEnabled = false;
-let autoSaveName = "";
+function teamName(id){ return (db.teams.find(t=>t.id===id)||{}).name||"—"; }
+function personName(id){ return (db.people.find(p=>p.id===id)||{}).name||"—"; }
+function uid(){ return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4); }
+function setText(id,txt){ const el=document.getElementById(id); if(el) el.textContent=txt; }
 
-function toast(msg){
-  const el = document.getElementById('toast'); if(!el) return;
-  el.textContent = msg; el.style.display = 'block';
-  setTimeout(()=>{ el.style.display='none'; }, 1800);
+function renderTeams(){ const el=document.getElementById('teams'); if(!el) return;
+  el.innerHTML=db.teams.map(t=>`<div class="row" style="justify-content:space-between;border-bottom:1px dashed var(--line);padding:6px 0;"><strong>${t.name}</strong><span><button class="link" onclick="renameTeam('${t.id}')">Renomear</button> <button class="link" onclick="removeTeam('${t.id}')">Excluir</button></span></div>`).join('')||'<div class="small">Adicione seus times.</div>';
+  const sel=(id)=>{const s=document.getElementById(id); if(!s) return; s.innerHTML='<option value="">— Time —</option>'+db.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');};
+  sel('personTeam'); sel('initTeam'); sel('editTeam');
+  const flt=document.getElementById('fltTeam'); if(flt) flt.innerHTML='<option value="">Todos os times</option>'+db.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
 }
-
-async function storageInit(){
-  dbx = new Dexie(DB_NAME);
-  dbx.version(1).stores({
-    meta: 'key',
-    data: 'id'
-  });
-  await dbx.open();
-  // tentar restaurar handle salvo (se navegador permitir)
-  try{
-    const rec = await dbx.meta.get('autosave');
-    if(rec && rec.value){
-      autoSaveEnabled = !!rec.value.enabled;
-      autoSaveName = rec.value.name||"";
-      if(rec.value.handle && 'showOpenFilePicker' in window){ // handle pode existir
-        autoSaveHandle = rec.value.handle;
-      }
-      updateAutoSaveState();
-    }
-  }catch(err){ /* ignore */ }
+function renderPeople(){ const el=document.getElementById('people'); if(!el) return;
+  el.innerHTML=db.people.map(p=>`<div class="row" style="justify-content:space-between;border-bottom:1px dashed var(--line);padding:6px 0;"><span><strong>${p.name}</strong> <span class="small">(${teamName(p.teamId)})</span></span><span><button class="link" onclick="renamePerson('${p.id}')">Renomear</button> <button class="link" onclick="removePerson('${p.id}')">Excluir</button></span></div>`).join('')||'';
+  const a=document.getElementById('initAssignee'); if(a) a.innerHTML='<option value="">— Responsável —</option>'+db.people.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  const e=document.getElementById('editAssignee'); if(e) e.innerHTML=a.innerHTML;
 }
 
-async function storageLoad(){
-  // 1) Tenta ler snapshot do IndexedDB
-  const snap = await dbx.data.get('snapshot');
-  if(snap && snap.value) return snap.value;
-  // 2) Migrar do localStorage se existir
-  try{
-    const raw = localStorage.getItem(LEGACY_LS);
-    if(raw){
-      const obj = JSON.parse(raw);
-      await dbx.data.put({id:'snapshot', value: obj});
-      // não apagamos o LS imediatamente — fica de backup
-      toast("Migrei dados do localStorage → IndexedDB");
-      return obj;
-    }
-  }catch(e){ /* ignore */ }
-  // 3) vazio
-  return { teams:[], people:[], initiatives:[] };
-}
+async function addTeam(){ const n=document.getElementById('teamName').value.trim(); if(!n) return; db.teams.push({id:uid(),name:n}); await save(); document.getElementById('teamName').value=''; renderTeams(); renderKanban(); renderTable(); }
+function renameTeam(id){ const t=db.teams.find(x=>x.id===id); if(!t) return; const n=prompt('Novo nome do time:', t.name); if(!n) return; t.name=n.trim(); save(); renderTeams(); renderKanban(); renderTable(); }
+function removeTeam(id){ if(!confirm('Excluir time e suas iniciativas/pessoas?')) return; db.teams=db.teams.filter(t=>t.id!==id); db.people=db.people.filter(p=>p.teamId!==id); db.initiatives=db.initiatives.filter(i=>i.teamId!==id); save(); renderTeams(); renderPeople(); renderKanban(); renderTable(); }
+async function addPerson(){ const team=document.getElementById('personTeam').value; const name=document.getElementById('personName').value.trim(); const email=document.getElementById('personEmail').value.trim(); if(!team||!name) return; db.people.push({id:uid(),name,email,teamId:team}); await save(); document.getElementById('personName').value=''; document.getElementById('personEmail').value=''; renderPeople(); renderKanban(); renderTable(); }
 
-const debouncers = {};
-function debounce(key, fn, ms){
-  clearTimeout(debouncers[key]); debouncers[key] = setTimeout(fn, ms);
-}
+function addTempLink(){ const p=document.getElementById('linkPlatform').value; const u=document.getElementById('linkUrl').value.trim(); if(!u) return; tempLinks.push({platform:p,url:u}); document.getElementById('linkUrl').value=''; document.getElementById('tempLinks').innerHTML=tempLinks.map((l,i)=>`<span class="tag">${l.platform}: <a href="${l.url}" target="_blank">link</a> <button class="link" onclick="tempLinks.splice(${i},1);document.getElementById('tempLinks').innerHTML='';addTempLink()">x</button></span>`).join(''); }
+async function addInitiative(){ const team=document.getElementById('initTeam').value; const title=document.getElementById('initTitle').value.trim(); if(!team||!title) return; const desc=document.getElementById('initDesc').value.trim(); const assignee=document.getElementById('initAssignee').value; const due=document.getElementById('initDue').value; const status=document.getElementById('initStatus').value; const priority=document.getElementById('initPriority').value||'Média'; const effort=document.getElementById('initEffort').value.trim(); const tags=(document.getElementById('initTags').value||'').split(',').map(x=>x.trim()).filter(Boolean); db.initiatives.push({id:uid(),teamId:team,title,desc,assigneeId:assignee,due,status,priority,effort,tags,links:[...tempLinks]}); tempLinks=[]; document.getElementById('tempLinks').innerHTML=''; await save(); document.getElementById('initTitle').value=''; document.getElementById('initDesc').value=''; document.getElementById('initTags').value=''; renderKanban(); renderTable(); }
 
-async function storageSave(obj){
-  // salva no IndexedDB
-  await dbx.data.put({id:'snapshot', value: obj});
-  // salva no arquivo (se ligado)
-  if(autoSaveEnabled && autoSaveHandle){
-    debounce('autosave', async ()=>{
-      try{
-        const stream = await autoSaveHandle.createWritable();
-        await stream.write(new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'}));
-        await stream.close();
-        // ok
-      }catch(err){
-        console.warn('Auto-save falhou', err);
-        toast('Auto‑save falhou — verifique permissões do arquivo.');
-      }
-    }, 400);
-  }
-}
+function openEdit(id){ const i=db.initiatives.find(x=>x.id===id); if(!i) return; setVal('editId',i.id); setVal('editTitle',i.title||''); setVal('editDesc',i.desc||''); setSel('editTeam',i.teamId||''); setSel('editAssignee',i.assigneeId||''); setVal('editDue',i.due||''); setSel('editStatus',i.status||'a_fazer'); setSel('editPriority',i.priority||'Média'); setVal('editEffort',i.effort||''); setVal('editTags',(i.tags||[]).join(', ')); const el=document.getElementById('editLinks'); el.dataset.links=JSON.stringify(i.links||[]); el.innerHTML=(i.links||[]).map((l,idx)=>`<span class='tag'>${l.platform}: <a href='${l.url}' target='_blank'>link</a></span>`).join(''); showModal(true); }
+function setVal(id,v){ const el=document.getElementById(id); if(el) el.value=v; } function setSel(id,v){ const el=document.getElementById(id); if(el) el.value=v; }
+function showModal(b){ document.getElementById('modalBackdrop').style.display=b?'flex':'none'; }
+async function saveEdit(){ const id=document.getElementById('editId').value; const i=db.initiatives.find(x=>x.id===id); if(!i) return; i.title=document.getElementById('editTitle').value.trim(); i.desc=document.getElementById('editDesc').value.trim(); i.teamId=document.getElementById('editTeam').value; i.assigneeId=document.getElementById('editAssignee').value; i.due=document.getElementById('editDue').value; i.status=document.getElementById('editStatus').value; i.priority=document.getElementById('editPriority').value||'Média'; i.effort=document.getElementById('editEffort').value.trim(); i.tags=(document.getElementById('editTags').value||'').split(',').map(x=>x.trim()).filter(Boolean); await save(); showModal(false); renderKanban(); renderTable(); }
+document.getElementById('btnCloseModal').onclick=()=>showModal(false); document.getElementById('btnCancelModal').onclick=()=>showModal(false);
 
-function updateAutoSaveState(){
-  const el = document.getElementById('autoSaveState');
-  if(!el) return;
-  el.textContent = autoSaveEnabled ? `Auto‑save: ligado ${autoSaveName?`(${autoSaveName})`:''}` : 'Auto‑save: desligado';
-}
+function renderKanban(){ const list=filter(db.initiatives); const cols={despriorizado:'col_desp',a_fazer:'col_todo',fazendo:'col_doing',bloqueado:'col_block',feito:'col_done'}; const counts={despriorizado:0,a_fazer:0,fazendo:0,bloqueado:0,feito:0}; Object.keys(cols).forEach(k=>{ const el=document.getElementById(cols[k]); el.innerHTML=''; }); list.forEach(i=>{ const el=document.getElementById(cols[i.status]||'col_todo'); if(!el) return; el.insertAdjacentHTML('beforeend', card(i)); counts[i.status]=(counts[i.status]||0)+1; }); setText('count_desp',`(${counts.despriorizado||0})`); setText('count_todo',`(${counts.a_fazer||0})`); setText('count_doing',`(${counts.fazendo||0})`); setText('count_block',`(${counts.bloqueado||0})`); setText('count_done',`(${counts.feito||0})`); enableDnD(); }
+function card(i){ const due=i.due? new Date(i.due).toLocaleDateString():'—'; return `<div class="card" draggable="true" data-id="${i.id}"><strong>${i.title}</strong><div class="small">${teamName(i.teamId)} • ${personName(i.assigneeId)} • ${due} • ${i.priority||'Média'}</div><div class="small">${i.desc||''}</div><div class="row"><button class="link" onclick="openEdit('${i.id}')">Editar</button><button class="link" onclick="moveInit('${i.id}','despriorizado')">Despriorizar</button><button class="link" onclick="moveInit('${i.id}','a_fazer')">A fazer</button><button class="link" onclick="moveInit('${i.id}','fazendo')">Fazendo</button><button class="link" onclick="moveInit('${i.id}','bloqueado')">Bloqueado</button><button class="link" onclick="moveInit('${i.id}','feito')">Feito</button><button class="link" onclick="removeInit('${i.id}')">Excluir</button></div></div>`; }
+function enableDnD(){ document.querySelectorAll('.card').forEach(c=>{ c.addEventListener('dragstart',e=>{ e.dataTransfer.setData('text/plain', c.dataset.id); }); }); document.querySelectorAll('.col').forEach(col=>{ col.addEventListener('dragover',e=>e.preventDefault()); col.addEventListener('drop',async e=>{ e.preventDefault(); const id=e.dataTransfer.getData('text/plain'); const it=db.initiatives.find(x=>x.id===id); if(it){ it.status=col.dataset.status; await save(); renderKanban(); renderTable(); } }); }); }
+function moveInit(id, st){ const it=db.initiatives.find(x=>x.id===id); if(!it) return; it.status=st; save(); renderKanban(); renderTable(); }
+function removeInit(id){ if(!confirm('Excluir iniciativa?')) return; db.initiatives=db.initiatives.filter(x=>x.id!==id); save(); renderKanban(); renderTable(); }
+function filter(list){ const q=(document.getElementById('q').value||'').toLowerCase(); const t=document.getElementById('fltTeam').value; const s=document.getElementById('fltStatus').value; return list.filter(i=>{ if(t && i.teamId!==t) return false; if(s && i.status!==s) return false; if(q){ const hay=[i.title,i.desc,personName(i.assigneeId),teamName(i.teamId),(i.tags||[]).join(' '),...(i.links||[]).map(l=>l.platform+' '+l.url)].join(' ').toLowerCase(); if(!hay.includes(q)) return false; } return true; }); }
+function renderTable(){ const list=filter(db.initiatives); const el=document.getElementById('listTable'); if(!el) return; if(!list.length){ el.innerHTML='<tr><td class="small">Sem iniciativas.</td></tr>'; return; } el.innerHTML='<tr><th>Título</th><th>Time</th><th>Resp.</th><th>Status</th><th>Prioridade</th><th>Venc.</th><th></th></tr>'+list.map(i=>`<tr><td><strong>${i.title}</strong></td><td>${teamName(i.teamId)}</td><td>${personName(i.assigneeId)}</td><td>${i.status}</td><td>${i.priority||'Média'}</td><td>${i.due||'—'}</td><td><button class="link" onclick="openEdit('${i.id}')">Editar</button></td></tr>`).join(''); }
 
-async function bindAutoSave(){
-  if(!('showSaveFilePicker' in window)){
-    alert('Seu navegador não suporta Auto‑save por arquivo (requer Chrome/Edge).');
-    return;
-  }
-  try{
-    autoSaveHandle = await window.showSaveFilePicker({
-      suggestedName: 'backlog_multitimes.json',
-      types:[{description:'JSON', accept:{'application/json':['.json']}}]
-    });
-    autoSaveEnabled = true;
-    autoSaveName = autoSaveHandle.name || '';
-    updateAutoSaveState();
-    await dbx.meta.put({key:'autosave', value:{enabled:true, name:autoSaveName, handle:autoSaveHandle}});
-    toast('Auto‑save ligado. Salvarei a cada alteração.');
-    // salva estado atual imediatamente
-    await storageSave(db);
-  }catch(err){
-    console.warn(err);
-    toast('Auto‑save não foi habilitado.');
-  }
-}
+function loadTheme(){ const t=localStorage.getItem(THEME)||'dark'; document.documentElement.setAttribute('data-theme',t); document.getElementById('themeToggle').checked=(t==='light'); }
+function toggleTheme(){ const cur=document.documentElement.getAttribute('data-theme'); const nxt=cur==='dark'?'light':'dark'; document.documentElement.setAttribute('data-theme',nxt); localStorage.setItem(THEME,nxt); }
+async function applyMeta(){ const m=await metaGet('app_meta')||{}; const t=m.title||'Backlog — Multi Times'; const logo=m.logo||null; document.getElementById('appTitle').textContent=t; const lg=document.getElementById('appLogo'); if(logo){ lg.src=logo; lg.style.display='inline-block'; } else { lg.style.display='none'; } }
+function fileToDataURL(file){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(file); }); }
 
-// -------- App state (igual às versões anteriores) --------
-const THEME_KEY = "backlog_theme";
+document.getElementById('btnExport').onclick=()=>{ const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='backlog.json'; a.click(); };
+document.getElementById('btnImport').onclick=()=>document.getElementById('importFile').click();
+document.getElementById('importFile').onchange=(e)=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=ev=>{ try{ const data=JSON.parse(ev.target.result); ['teams','people','initiatives'].forEach(k=>db[k]=data[k]||[]); save(); renderTeams(); renderPeople(); renderKanban(); renderTable(); }catch(err){ alert('JSON inválido'); } }; r.readAsText(f); };
 
-const db = { teams: [], people: [], initiatives: [] };
-let tempLinks = [];
+document.getElementById('btnAddTeam').onclick=addTeam;
+document.getElementById('btnAddPerson').onclick=addPerson;
+document.getElementById('btnAddTempLink').onclick=addTempLink;
+document.getElementById('btnAddInitiative').onclick=addInitiative;
 
-function uid(){ return Math.random().toString(36).slice(2,9) + Date.now().toString(36).slice(-4); }
-async function load(){
-  const data = await storageLoad();
-  Object.assign(db, data||{});
-}
-async function save(){ await storageSave(db); }
+document.getElementById('q').oninput=()=>{renderKanban(); renderTable();};
+document.getElementById('fltTeam').onchange=()=>{renderKanban(); renderTable();};
+document.getElementById('fltStatus').onchange=()=>{renderKanban(); renderTable();};
 
-function loadTheme(){
-  const t = localStorage.getItem(THEME_KEY) || "dark";
-  document.documentElement.setAttribute("data-theme", t);
-  const themeToggle = document.getElementById("themeToggle");
-  if(themeToggle) themeToggle.checked = (t === "light");
-}
-function toggleTheme(){
-  const cur = document.documentElement.getAttribute("data-theme");
-  const next = cur === "dark" ? "light" : "dark";
-  document.documentElement.setAttribute("data-theme", next);
-  localStorage.setItem(THEME_KEY, next);
-}
+document.getElementById('btnSaveEdit').onclick=saveEdit;
+document.getElementById('btnCancelModal').onclick=()=>showModal(false);
+document.getElementById('btnCloseModal').onclick=()=>showModal(false);
 
-function teamName(id){ return (db.teams.find(t=>t.id===id)||{}).name || "—"; }
-function personName(id){ return (db.people.find(p=>p.id===id)||{}).name || "—"; }
+document.getElementById('btnSettings').onclick=()=>document.getElementById('settingsBackdrop').style.display='flex';
+document.getElementById('btnCloseSettings').onclick=()=>document.getElementById('settingsBackdrop').style.display='none';
+document.getElementById('btnCancelSettings').onclick=()=>document.getElementById('settingsBackdrop').style.display='none';
+document.getElementById('btnSaveSettings').onclick=async()=>{ const t=document.getElementById('cfgTitle').value; const f=document.getElementById('cfgLogoFile').files[0]; let logo=(await metaGet('app_meta')||{}).logo||null; if(f){ logo=await fileToDataURL(f); } await metaSet('app_meta',{title:t||'Backlog — Multi Times',logo}); await applyMeta(); document.getElementById('settingsBackdrop').style.display='none'; };
+document.getElementById('btnClearLogo').onclick=async()=>{ const m=await metaGet('app_meta')||{}; m.logo=null; await metaSet('app_meta',m); await applyMeta(); };
 
-function renderTeams(){
-  const el = document.getElementById("teams");
-  if(!el) return;
-  el.innerHTML = db.teams.map(t=>`
-    <div class="row" style="justify-content:space-between; border-bottom:1px dashed var(--line); padding:6px 0;">
-      <div><strong>${t.name}</strong></div>
-      <div class="actions">
-        <button class="link" onclick="renameTeam('${t.id}')">Renomear</button>
-        <button class="link danger" onclick="removeTeam('${t.id}')">Excluir</button>
-      </div>
-    </div>`).join("") || `<div class="hint">Adicione seus times.</div>`;
+document.getElementById('themeToggle').onchange=toggleTheme;
 
-  const selectTeam = (id)=>{
-    const s = document.getElementById(id);
-    if(!s) return;
-    s.innerHTML = `<option value="">— Time —</option>` + db.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
-  };
-  selectTeam("personTeam");
-  selectTeam("initTeam");
-  selectTeam("editTeam");
-  const flt = document.getElementById("fltTeam");
-  if(flt) flt.innerHTML = `<option value="">Todos os times</option>` + db.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join("");
-}
-
-function renderPeople(){
-  const el = document.getElementById("people");
-  if(!el) return;
-  el.innerHTML = db.people.map(p=>`
-    <div class="row" style="justify-content:space-between; border-bottom:1px dashed var(--line); padding:6px 0;">
-      <div><strong>${p.name}</strong> <span class="small">(${teamName(p.teamId)})</span> ${p.email?`<span class="badge">${p.email}</span>`:""}</div>
-      <div class="actions">
-        <button class="link" onclick="movePerson('${p.id}')">Mover</button>
-        <button class="link" onclick="renamePerson('${p.id}')">Renomear</button>
-        <button class="link danger" onclick="removePerson('${p.id}')">Excluir</button>
-      </div>
-    </div>`).join("") || `<div class="hint">Inclua as pessoas de cada time.</div>`;
-
-  const assignee = document.getElementById("initAssignee");
-  if(assignee) assignee.innerHTML = `<option value="">— Responsável —</option>` + db.people.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
-
-  const editAssignee = document.getElementById("editAssignee");
-  if(editAssignee) editAssignee.innerHTML = `<option value="">— Responsável —</option>` + db.people.map(p=>`<option value="${p.id}">${p.name}</option>`).join("");
-}
-
-async function addTeam(){
-  const nameEl = document.getElementById("teamName"); if(!nameEl) return;
-  const name = nameEl.value.trim();
-  if(!name) return;
-  db.teams.push({id:uid(), name});
-  await save();
-  nameEl.value="";
-  renderTeams(); renderPeople(); renderKanban(); renderTable();
-}
-function renameTeam(id){
-  const t = db.teams.find(x=>x.id===id); if(!t) return;
-  const name = prompt("Novo nome do time:", t.name); if(!name) return;
-  t.name = name.trim(); save(); renderTeams(); renderKanban(); renderTable();
-}
-function removeTeam(id){
-  if(!confirm("Excluir time e suas iniciativas/pessoas?")) return;
-  db.teams = db.teams.filter(t=>t.id!==id);
-  db.people = db.people.filter(p=>p.teamId!==id);
-  db.initiatives = db.initiatives.filter(i=>i.teamId!==id);
-  save(); renderTeams(); renderPeople(); renderKanban(); renderTable();
-}
-
-async function addPerson(){
-  const teamIdEl = document.getElementById("personTeam");
-  const nameEl = document.getElementById("personName");
-  const emailEl = document.getElementById("personEmail");
-  if(!teamIdEl || !nameEl || !emailEl) return;
-  const teamId = teamIdEl.value;
-  const name = nameEl.value.trim();
-  const email = emailEl.value.trim();
-  if(!teamId || !name) return;
-  db.people.push({id:uid(), name, email, teamId});
-  await save();
-  nameEl.value="";
-  emailEl.value="";
-  renderPeople(); renderKanban(); renderTable();
-}
-function movePerson(id){
-  const p = db.people.find(x=>x.id===id); if(!p) return;
-  const name = prompt("Mover para qual time (digite o nome exato)?", teamName(p.teamId));
-  const t = db.teams.find(x=>x.name===name);
-  if(!t){ alert("Time não encontrado."); return; }
-  p.teamId = t.id; save(); renderPeople(); renderKanban(); renderTable();
-}
-function renamePerson(id){
-  const p = db.people.find(x=>x.id===id); if(!p) return;
-  const name = prompt("Novo nome:", p.name); if(!name) return;
-  p.name = name.trim(); save(); renderPeople(); renderKanban(); renderTable();
-}
-function removePerson(id){
-  if(!confirm("Excluir pessoa?")) return;
-  db.people = db.people.filter(p=>p.id!==id);
-  db.initiatives.forEach(i=>{ if(i.assigneeId===id) i.assigneeId=""; });
-  save(); renderPeople(); renderKanban(); renderTable();
-}
-
-function addTempLink(){
-  const platformEl = document.getElementById("linkPlatform");
-  const urlEl = document.getElementById("linkUrl");
-  if(!platformEl || !urlEl) return;
-  const platform = platformEl.value;
-  const url = urlEl.value.trim();
-  if(!url) return;
-  tempLinks.push({platform, url});
-  urlEl.value="";
-  renderTempLinks();
-}
-function removeTempLink(idx){ tempLinks.splice(idx,1); renderTempLinks(); }
-function renderTempLinks(){
-  const el = document.getElementById("tempLinks"); if(!el) return;
-  el.innerHTML = tempLinks.map((l,idx)=>`<span class="tag">${l.platform}: <a href="${l.url}" target="_blank">link</a> <button class="link" onclick="removeTempLink(${idx})">remover</button></span>`).join("") || `<span class="hint">Adicione links (Azure DevOps, Jira, HubSpot...)</span>`;
-}
-
-async function addInitiative(){
-  const teamId = (document.getElementById("initTeam")||{}).value;
-  const title = (document.getElementById("initTitle")||{}).value?.trim();
-  const desc = (document.getElementById("initDesc")||{}).value?.trim();
-  const assigneeId = (document.getElementById("initAssignee")||{}).value;
-  const due = (document.getElementById("initDue")||{}).value;
-  const status = (document.getElementById("initStatus")||{}).value;
-  const priority = (document.getElementById("initPriority")||{}).value;
-  const effort = (document.getElementById("initEffort")||{}).value?.trim();
-  const tags = ((document.getElementById("initTags")||{}).value||"").split(",").map(x=>x.trim()).filter(Boolean);
-  if(!teamId || !title) return;
-  db.initiatives.push({id:uid(), teamId, title, desc, assigneeId, due, status, priority, effort, tags, links:[...tempLinks]});
-  tempLinks = []; renderTempLinks();
-  await save();
-  if(document.getElementById("initTitle")) document.getElementById("initTitle").value="";
-  if(document.getElementById("initDesc")) document.getElementById("initDesc").value="";
-  if(document.getElementById("initTags")) document.getElementById("initTags").value="";
-  renderKanban(); renderTable();
-}
-
-function openEdit(id){
-  const i = db.initiatives.find(x=>x.id===id); if(!i) return;
-  setValue("editId", i.id);
-  setValue("editTitle", i.title||"");
-  setValue("editDesc", i.desc||"");
-  setSelect("editTeam", i.teamId||"");
-  setSelect("editAssignee", i.assigneeId||"");
-  setValue("editDue", i.due||"");
-  setSelect("editStatus", i.status||"a_fazer");
-  setSelect("editPriority", i.priority||"Média");
-  setValue("editEffort", i.effort||"");
-  setValue("editTags", (i.tags||[]).join(", "));
-  renderEditLinks(i.links||[]);
-  showModal(true);
-}
-function setValue(id, val){ const el = document.getElementById(id); if(el) el.value = val; }
-function setSelect(id, val){ const el = document.getElementById(id); if(el) el.value = val; }
-function renderEditLinks(links){
-  const el = document.getElementById("editLinks"); if(!el) return;
-  el.dataset.links = JSON.stringify(links||[]);
-  el.innerHTML = (links||[]).map((l,idx)=>`<span class="tag">${l.platform}: <a href="${l.url}" target="_blank">link</a> <button class="link" onclick="editRemoveLink(${idx})">remover</button></span>`).join("") || `<span class="hint">Sem links ainda.</span>`;
-}
-function editAddLink(){
-  const platform = (document.getElementById("editLinkPlatform")||{}).value;
-  const url = ((document.getElementById("editLinkUrl")||{}).value||"").trim();
-  if(!url) return;
-  const el = document.getElementById("editLinks"); if(!el) return;
-  const links = JSON.parse(el.dataset.links || "[]");
-  links.push({platform, url});
-  if(document.getElementById("editLinkUrl")) document.getElementById("editLinkUrl").value="";
-  renderEditLinks(links);
-}
-function editRemoveLink(idx){
-  const el = document.getElementById("editLinks"); if(!el) return;
-  const links = JSON.parse(el.dataset.links || "[]");
-  links.splice(idx,1);
-  renderEditLinks(links);
-}
-function showModal(show){
-  const mb = document.getElementById("modalBackdrop");
-  if(mb) mb.style.display = show ? "flex" : "none";
-}
-async function saveEdit(){
-  const id = (document.getElementById("editId")||{}).value;
-  const i = db.initiatives.find(x=>x.id===id); if(!i) return;
-  i.title = ((document.getElementById("editTitle")||{}).value||"").trim();
-  i.desc = ((document.getElementById("editDesc")||{}).value||"").trim();
-  i.teamId = (document.getElementById("editTeam")||{}).value;
-  i.assigneeId = (document.getElementById("editAssignee")||{}).value;
-  i.due = (document.getElementById("editDue")||{}).value;
-  i.status = (document.getElementById("editStatus")||{}).value;
-  i.priority = (document.getElementById("editPriority")||{}).value;
-  i.effort = ((document.getElementById("editEffort")||{}).value||"").trim();
-  i.tags = ((document.getElementById("editTags")||{}).value||"").split(",").map(x=>x.trim()).filter(Boolean);
-  const el = document.getElementById("editLinks");
-  i.links = el ? JSON.parse(el.dataset.links || "[]") : [];
-  await save(); showModal(false); renderKanban(); renderTable();
-}
-
-function moveInit(id, status){
-  const i = db.initiatives.find(x=>x.id===id); if(!i) return;
-  i.status = status; save(); renderKanban(); renderTable();
-}
-function removeInit(id){
-  if(!confirm("Excluir iniciativa?")) return;
-  db.initiatives = db.initiatives.filter(x=>x.id!==id);
-  save(); renderKanban(); renderTable();
-}
-
-function card(i){
-  const dueStr = i.due ? new Date(i.due).toLocaleDateString() : "—";
-  const overdue = i.due && new Date(i.due) < new Date() && i.status!=="feito";
-  const pr = (i.priority||"Média");
-  const pill = pr==="Alta"?"high":(pr==="Baixa"?"low":"med");
-  const tagHtml = (i.tags||[]).map(t=>`<span class="tag">${t}</span>`).join(" ");
-  const links = (i.links||[]).map(l=>`<span class="tag">${l.platform}: <a href="${l.url}" target="_blank">abrir</a></span>`).join(" ");
-  return `<div class="card" draggable="true" data-id="${i.id}">
-    <div class="row" style="justify-content:space-between;">
-      <div><strong>${i.title}</strong></div>
-      <div class="small"><span class="pill ${pill}">${pr}</span></div>
-    </div>
-    <div class="small">${teamName(i.teamId)} • Resp.: ${personName(i.assigneeId)} • Venc.: <span ${overdue?'style="color:#b91c1c"':''}>${dueStr}</span></div>
-    <div class="small">${i.desc||""}</div>
-    <div class="taglist" style="margin-top:6px">${tagHtml} ${links}</div>
-    <div class="actions">
-      <button class="link" onclick="openEdit('${i.id}')">Editar</button>
-      <button class="link" onclick="moveInit('${i.id}','despriorizado')">Despriorizar</button>
-      <button class="link" onclick="moveInit('${i.id}','a_fazer')">A fazer</button>
-      <button class="link" onclick="moveInit('${i.id}','fazendo')">Fazendo</button>
-      <button class="link" onclick="moveInit('${i.id}','bloqueado')">Bloqueado</button>
-      <button class="link" onclick="moveInit('${i.id}','feito')">Feito</button>
-      <button class="link danger" onclick="removeInit('${i.id}')">Excluir</button>
-    </div>
-  </div>`;
-}
-
-function filterList(list){
-  const q = ((document.getElementById("q")||{}).value||"").toLowerCase();
-  const teamF = (document.getElementById("fltTeam")||{}).value;
-  const stF = (document.getElementById("fltStatus")||{}).value;
-  return list.filter(i=>{
-    if(teamF && i.teamId!==teamF) return false;
-    if(stF && i.status!==stF) return false;
-    if(q){
-      const hay = [
-        i.title, i.desc, personName(i.assigneeId), teamName(i.teamId),
-        (i.tags||[]).join(" "),
-        ...((i.links||[]).map(l=>l.platform + " " + l.url))
-      ].join(" ").toLowerCase();
-      if(!hay.includes(q)) return false;
-    }
-    return true;
-  });
-}
-
-function renderKanban(){
-  const list = filterList(db.initiatives);
-  const grp = { "despriorizado": [], "a_fazer": [], "fazendo": [], "bloqueado": [], "feito": [] };
-  const byStatus = db.initiatives.reduce((acc,i)=>{ (acc[i.status]??=[]).push(i.id); return acc; }, {});
-  const orderIdx = (s,id)=> (byStatus[s]||[]).indexOf(id);
-  list.forEach(i=>{ (grp[i.status]??=grp["a_fazer"]).push(i); });
-  Object.keys(grp).forEach(s=> grp[s].sort((a,b)=> orderIdx(s,a.id) - orderIdx(s,b.id)) );
-
-  const cols = {
-    despriorizado: "col_desp",
-    a_fazer: "col_todo",
-    fazendo: "col_doing",
-    bloqueado: "col_block",
-    feito: "col_done"
-  };
-  for(const st in cols){
-    const el = document.getElementById(cols[st]); if(!el) continue;
-    el.innerHTML = grp[st].map(card).join("");
-  }
-  setText("count_desp", `(${grp.despriorizado.length})`);
-  setText("count_todo", `(${grp.a_fazer.length})`);
-  setText("count_doing", `(${grp.fazendo.length})`);
-  setText("count_block", `(${grp.bloqueado.length})`);
-  setText("count_done", `(${grp.feito.length})`);
-
-  enableDnD();
-}
-function setText(id, txt){ const el = document.getElementById(id); if(el) el.textContent = txt; }
-
-function renderTable(){
-  const list = filterList(db.initiatives);
-  const tbl = document.getElementById("listTable");
-  if(!tbl) return;
-  if(!list.length){ tbl.innerHTML = `<tr><td class="hint">Sem iniciativas para mostrar.</td></tr>`; return; }
-  tbl.innerHTML = `<thead>
-    <tr>
-      <th>Título</th><th>Time</th><th>Responsável</th><th>Status</th>
-      <th>Prioridade</th><th>Vencimento</th><th>Esforço</th><th>Tags</th><th>Links</th><th></th>
-    </tr>
-  </thead>
-  <tbody>
-    ${list.map(i=>`<tr>
-      <td><strong>${i.title}</strong><div class="small">${i.desc||""}</div></td>
-      <td>${teamName(i.teamId)}</td>
-      <td>${personName(i.assigneeId)}</td>
-      <td>${i.status.replace("_"," ")}</td>
-      <td>${i.priority||"Média"}</td>
-      <td>${i.due? new Date(i.due).toLocaleDateString() : "—"}</td>
-      <td>${i.effort||"—"}</td>
-      <td>${(i.tags||[]).map(t=>`<span class="tag">${t}</span>`).join(" ")}</td>
-      <td>${(i.links||[]).map(l=>`<span class="tag"><a href="${l.url}" target="_blank">${l.platform}</a></span>`).join(" ")}</td>
-      <td class="right"><button class="link" onclick="openEdit('${i.id}')">Editar</button> <button class="link danger" onclick="removeInit('${i.id}')">Excluir</button></td>
-    </tr>`).join("")}
-  </tbody>`;
-}
-
-function exportJSON(){
-  const blob = new Blob([JSON.stringify(db, null, 2)], {type:"application/json"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "backlog_multitimes.json";
-  a.click();
-}
-function csvEscape(v){
-  if(v==null) return "";
-  const s = String(v).replace(/"/g,'""');
-  return /[",\n]/.test(s) ? `"${s}"` : s;
-}
-function exportCSV(){
-  const list = filterList(db.initiatives);
-  const header = ["Título","Time","Responsável","Status","Prioridade","Vencimento","Esforço","Tags","Links"];
-  const rows = list.map(i=>[
-    i.title,
-    teamName(i.teamId),
-    personName(i.assigneeId),
-    i.status,
-    i.priority||"Média",
-    i.due||"",
-    i.effort||"",
-    (i.tags||[]).join(" | "),
-    (i.links||[]).map(l=>`${l.platform}:${l.url}`).join(" | ")
-  ]);
-  const csv = [header, ...rows].map(r=>r.map(csvEscape).join(",")).join("\n");
-  const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "backlog_multitimes.csv";
-  a.click();
-}
-
-function importJSON(file){
-  const reader = new FileReader();
-  reader.onload = async (e)=>{
-    try{ const data = JSON.parse(e.target.result); Object.assign(db, data); await save(); renderAll(); }
-    catch(err){ alert("Arquivo inválido."); }
-  };
-  reader.readAsText(file);
-}
-
-// ---------- Drag & Drop ---------
-function enableDnD(){
-  document.querySelectorAll('.card[draggable="true"]').forEach(card=>{
-    card.addEventListener('dragstart', (e)=>{
-      e.dataTransfer.setData('text/plain', card.dataset.id);
-      setTimeout(()=> card.classList.add('dragging'), 0);
-      card.parentElement.insertBefore(ghost(), card.nextSibling);
-    });
-    card.addEventListener('dragend', ()=>{
-      card.classList.remove('dragging');
-      removeGhosts();
-    });
-  });
-
-  document.querySelectorAll('.col').forEach(col=>{
-    const dz = col.querySelector('.dropzone');
-    col.addEventListener('dragover', (e)=>{
-      e.preventDefault();
-      col.classList.add('over');
-      const after = getDragAfterElement(dz, e.clientY);
-      const g = ensureGhost(dz);
-      if(after == null) dz.appendChild(g); else dz.insertBefore(g, after);
-    });
-    col.addEventListener('dragleave', ()=> col.classList.remove('over'));
-    col.addEventListener('drop', async (e)=>{
-      e.preventDefault();
-      col.classList.remove('over');
-      const id = e.dataTransfer.getData('text/plain');
-      const status = col.dataset.status;
-      if(id && status){
-        const item = db.initiatives.find(x=>x.id===id);
-        if(item){ item.status = status; }
-        const g = col.querySelector('.ghost-card');
-        const srcCard = document.querySelector(`.card[data-id="${id}"]`);
-        if(g && srcCard){ dz.insertBefore(srcCard, g); }
-        saveOrderFromDOM();
-        await save(); renderKanban(); renderTable();
-      }
-    });
-  });
-}
-function ghost(){ const g = document.createElement('div'); g.className = 'ghost-card'; return g; }
-function removeGhosts(){ document.querySelectorAll('.ghost-card').forEach(g=>g.remove()); }
-function ensureGhost(container){ let g = container.querySelector('.ghost-card'); if(!g){ g = ghost(); container.appendChild(g); } return g; }
-function getDragAfterElement(container, y){
-  const els = [...container.querySelectorAll('.card:not(.dragging)')];
-  return els.reduce((closest, child)=>{
-    const box = child.getBoundingClientRect();
-    const offset = y - box.top - box.height/2;
-    if(offset < 0 && offset > closest.offset) return { offset, element: child };
-    return closest;
-  }, { offset: Number.NEGATIVE_INFINITY }).element;
-}
-function saveOrderFromDOM(){
-  const map = {
-    "despriorizado": document.getElementById("col_desp"),
-    "a_fazer": document.getElementById("col_todo"),
-    "fazendo": document.getElementById("col_doing"),
-    "bloqueado": document.getElementById("col_block"),
-    "feito": document.getElementById("col_done"),
-  };
-  const newOrder = [];
-  Object.keys(map).forEach(status=>{
-    const root = map[status]; if(!root) return;
-    const ids = [...root.querySelectorAll('.card')].map(c=>c.dataset.id);
-    ids.forEach(id=>{ const item = db.initiatives.find(x=>x.id===id); if(item){ item.status = status; newOrder.push(item); } });
-  });
-  const visibleIds = new Set(newOrder.map(i=>i.id));
-  db.initiatives.forEach(i=>{ if(!visibleIds.has(i.id)) newOrder.push(i); });
-  db.initiatives = newOrder;
-}
-
-// ---------- Render All & Events ----------
-async function renderAll(){ renderTeams(); renderPeople(); renderKanban(); renderTable(); loadTheme(); }
-
-document.addEventListener('DOMContentLoaded', async ()=>{
-  const bind = (id, ev, fn)=>{ const el = document.getElementById(id); if(el) el.addEventListener(ev, fn); };
-
-  bind("q","input", ()=>{ renderKanban(); renderTable(); });
-  bind("fltTeam","change", ()=>{ renderKanban(); renderTable(); });
-  bind("fltStatus","change", ()=>{ renderKanban(); renderTable(); });
-  bind("btnExport","click", exportJSON);
-  bind("btnExportCSV","click", exportCSV);
-  bind("btnImport","click", ()=>{ const f=document.getElementById("importFile"); if(f) f.click(); });
-  bind("importFile","change", (e)=>{ const file = e.target.files[0]; if(file) importJSON(file); });
-  bind("btnSeed","click", seed);
-  bind("btnWipe","click", wipe);
-  bind("themeToggle","change", toggleTheme);
-
-  bind("btnAddTeam","click", addTeam);
-  bind("btnAddPerson","click", addPerson);
-  bind("btnAddTempLink","click", addTempLink);
-  bind("btnAddInitiative","click", addInitiative);
-  bind("btnBindFile","click", bindAutoSave);
-
-  // modal
-  bind("btnCloseModal","click", ()=> showModal(false));
-  bind("btnCancelModal","click", ()=> showModal(false));
-  bind("btnSaveEdit","click", saveEdit);
-
-  await storageInit();
-  await load();
-  await renderAll();
-  updateAutoSaveState();
-});
-
-// ---------- Seed & Wipe ----------
-async function seed(){
-  if(!confirm("Popular com dados de exemplo? Isso substituirá seus dados atuais.")) return;
-  const t1 = {id:uid(), name:"Ecommerce"};
-  const t2 = {id:uid(), name:"POS/TEF"};
-  db.teams = [t1,t2];
-  const p1 = {id:uid(), name:"Ana", email:"ana@empresa.com", teamId:t1.id};
-  const p2 = {id:uid(), name:"Bruno", email:"bruno@empresa.com", teamId:t2.id};
-  db.people = [p1,p2];
-  db.initiatives = [
-    {id:uid(), teamId:t1.id, title:"Checkout transparente v2", desc:"Refatorar etapas + split de pagamento", assigneeId:p1.id, due:"", status:"fazendo", priority:"Alta", effort:"8 pts", tags:["checkout","web"], links:[{platform:"Azure DevOps", url:"https://dev.azure.com/org/proj/_workitems/edit/123"}]},
-    {id:uid(), teamId:t1.id, title:"Integração HubSpot deals", desc:"Sincronizar estágio com status do pedido", assigneeId:p1.id, due:"", status:"a_fazer", priority:"Média", effort:"5 pts", tags:["CRM","HubSpot"], links:[{platform:"HubSpot", url:"https://app.hubspot.com/contacts/xxx"}]},
-    {id:uid(), teamId:t2.id, title:"Driver pinpad Linux", desc:"Compatibilizar com distro XYZ", assigneeId:p2.id, due:"", status:"bloqueado", priority:"Alta", effort:"13 pts", tags:["pinpad","linux"], links:[{platform:"Jira", url:"https://jira.exemplo/browse/PP-42"}]},
-    {id:uid(), teamId:t2.id, title:"SDK TEF Android", desc:"MVP para pilotos", assigneeId:p2.id, due:"", status:"despriorizado", priority:"Baixa", effort:"8 pts", tags:["android","tef"], links:[]},
-    {id:uid(), teamId:t1.id, title:"Monitor de conversão", desc:"Dashboard diário", assigneeId:p1.id, due:"", status:"feito", priority:"Média", effort:"3 pts", tags:["observabilidade"], links:[]}
-  ];
-  await save(); renderAll(); toast("Exemplo carregado.");
-}
-async function wipe(){
-  if(!confirm("Apagar todos os dados?")) return;
-  db.teams = []; db.people = []; db.initiatives = [];
-  await save();
-  // limpa também localStorage legado
-  try{ localStorage.removeItem(LEGACY_LS); }catch(e){}
-  renderAll(); toast("Dados apagados.");
-}
+addEventListener('DOMContentLoaded', async()=>{ await initDB(); loadTheme(); const data=await load(); ['teams','people','initiatives'].forEach(k=>db[k]=data[k]||[]); renderTeams(); renderPeople(); renderKanban(); renderTable(); applyMeta(); });
 </script>
 </body>
 </html>
