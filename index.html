@@ -35,7 +35,7 @@ ul.comments{list-style:disc;padding-left:18px;margin:6px 0 0 0}.comments li{font
   <h1><img id="appLogo" class="app-logo"><span id="appTitle">Backlog — Multi Times</span></h1>
   <input id="q" placeholder="Pesquisar (título, tags, pessoa, link)">
   <select id="fltTeam"></select>
-  <select id="fltStatus"><option value="">Todos status</option><option value="despriorizado">Despriorizado</option><option value="a_fazer">A fazer</option><option value="fazendo">Fazendo</option><option value="bloqueado">Bloqueado</option><option value="feito">Feito</option></select>
+  <select id="fltStatus"><option value="">Todos status</option><option value="despriorizado">Despriorizado</option><option value="a_fazer">A fazer</option><option value="fazendo">Em andamento</option><option value="bloqueado">Bloqueado</option><option value="feito">Feito</option></select>
   <button id="btnExport">Exportar JSON</button>
   <button id="btnImport" class="link">Importar</button><input type="file" id="importFile" accept="application/json" style="display:none">
   <button id="btnBindFile" class="link">Vincular arquivo (Auto‑save)</button>
@@ -51,7 +51,7 @@ ul.comments{list-style:disc;padding-left:18px;margin:6px 0 0 0}.comments li{font
   </details>
   <details class="panel" id="secNew"><summary><strong>Cadastro de Iniciativas</strong> — clique para expandir</summary>
     <div class="row"><select id="initTeam"></select><input id="initTitle" placeholder="Título"><select id="initAssignee"></select><input type="date" id="initDue"></div>
-    <div class="row"><select id="initStatus"><option value="despriorizado">Despriorizado</option><option value="a_fazer">A fazer</option><option value="fazendo">Fazendo</option><option value="bloqueado">Bloqueado</option><option value="feito">Feito</option></select>
+    <div class="row"><select id="initStatus"><option value="despriorizado">Despriorizado</option><option value="a_fazer">A fazer</option><option value="fazendo">Em andamento</option><option value="bloqueado">Bloqueado</option><option value="feito">Feito</option></select>
     <select id="initPriority"><option>Média</option><option>Alta</option><option>Baixa</option></select><input id="initEffort" placeholder="Esforço (pts/dias)"></div>
     <textarea id="initDesc" rows="2" placeholder="Descrição"></textarea>
     <div class="row"><input id="initTags" class="grow" placeholder="Tags, separadas por vírgula"></div>
@@ -63,7 +63,7 @@ ul.comments{list-style:disc;padding-left:18px;margin:6px 0 0 0}.comments li{font
     <div class="kanban">
       <div class="col" data-status="despriorizado"><h3>Despriorizado <span id="count_desp"></span></h3><div id="col_desp" class="dropzone"></div></div>
       <div class="col" data-status="a_fazer"><h3>A fazer <span id="count_todo"></span></h3><div id="col_todo" class="dropzone"></div></div>
-      <div class="col" data-status="fazendo"><h3>Fazendo <span id="count_doing"></span></h3><div id="col_doing" class="dropzone"></div></div>
+      <div class="col" data-status="fazendo"><h3>Em andamento <span id="count_doing"></span></h3><div id="col_doing" class="dropzone"></div></div>
       <div class="col" data-status="bloqueado"><h3>Bloqueado <span id="count_block"></span></h3><div id="col_block" class="dropzone"></div></div>
       <div class="col" data-status="feito"><h3>Feito <span id="count_done"></span></h3><div id="col_done" class="dropzone"></div></div>
     </div>
@@ -77,7 +77,7 @@ ul.comments{list-style:disc;padding-left:18px;margin:6px 0 0 0}.comments li{font
   <input type="hidden" id="editId">
   <div class="row"><select id="editTeam"></select><input id="editTitle" placeholder="Título"></div>
   <textarea id="editDesc" rows="3" placeholder="Descrição"></textarea>
-  <div class="row"><select id="editAssignee"></select><input type="date" id="editDue"><select id="editStatus"><option value="despriorizado">Despriorizado</option><option value="a_fazer">A fazer</option><option value="fazendo">Fazendo</option><option value="bloqueado">Bloqueado</option><option value="feito">Feito</option></select><select id="editPriority"><option>Média</option><option>Alta</option><option>Baixa</option></select><input id="editEffort" placeholder="Esforço"></div>
+  <div class="row"><select id="editAssignee"></select><input type="date" id="editDue"><select id="editStatus"><option value="despriorizado">Despriorizado</option><option value="a_fazer">A fazer</option><option value="fazendo">Em andamento</option><option value="bloqueado">Bloqueado</option><option value="feito">Feito</option></select><select id="editPriority"><option>Média</option><option>Alta</option><option>Baixa</option></select><input id="editEffort" placeholder="Esforço"></div>
   <div class="row"><input id="editTags" class="grow" placeholder="Tags (vírgula)"></div>
   <div class="row"><select id="editLinkPlatform"><option>Azure DevOps</option><option>Jira</option><option>HubSpot</option><option>Outro</option></select><input id="editLinkUrl" placeholder="URL"><button id="btnEditAddLink">+ Link</button></div>
   <div id="editLinks"></div>
@@ -157,7 +157,7 @@ function card(i){
     <div class="small">${teamName(i.teamId)} • ${personName(i.assigneeId)} • ${due} • ${i.priority||'Média'}</div>
     <div class="small">${i.desc||''}</div>
     ${(i.comments&&i.comments.length)?`<ul class="comments">${comments}</ul>`:''}
-    <div class="row"><button class="link" onclick="openEdit('${i.id}')">Editar</button><button class="link" onclick="moveInit('${i.id}','despriorizado')">Despriorizar</button><button class="link" onclick="moveInit('${i.id}','a_fazer')">A fazer</button><button class="link" onclick="moveInit('${i.id}','fazendo')">Fazendo</button><button class="link" onclick="moveInit('${i.id}','bloqueado')">Bloqueado</button><button class="link" onclick="moveInit('${i.id}','feito')">Feito</button><button class="link" onclick="removeInit('${i.id}')">Excluir</button></div>
+    <div class="row"><button class="link" onclick="openEdit('${i.id}')">Editar</button><button class="link" onclick="moveInit('${i.id}','despriorizado')">Despriorizar</button><button class="link" onclick="moveInit('${i.id}','a_fazer')">A fazer</button><button class="link" onclick="moveInit('${i.id}','fazendo')">Em andamento</button><button class="link" onclick="moveInit('${i.id}','bloqueado')">Bloqueado</button><button class="link" onclick="moveInit('${i.id}','feito')">Feito</button><button class="link" onclick="removeInit('${i.id}')">Excluir</button></div>
   </div>`;
 }
 function renderKanban(){
